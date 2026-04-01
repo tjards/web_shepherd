@@ -129,6 +129,12 @@ function initMouseTracking(canvas) {
     mouseX = e.clientX - rect.left;
     mouseY = e.clientY - rect.top;
   });
+  
+  canvas.addEventListener('click', e => {
+    const rect = canvas.getBoundingClientRect();
+    targetX = e.clientX - rect.left;
+    targetY = e.clientY - rect.top;
+  });
 }
 
 // cursor objects (used for cursor control mode)
@@ -453,34 +459,31 @@ function animate() {
   ctx.fill();
   ctx.globalAlpha = 1.0;
 
-  // draw target at center of screen (maybe move later)
-  const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2;
-  
+  // draw target at current position
   // outer circle
   ctx.strokeStyle = COLORS.TARGET;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.arc(centerX, centerY, 8, 0, Math.PI * 2);
+  ctx.arc(targetX, targetY, 8, 0, Math.PI * 2);
   ctx.stroke();
   
   // inner circle
   ctx.beginPath();
-  ctx.arc(centerX, centerY, 4, 0, Math.PI * 2);
+  ctx.arc(targetX, targetY, 4, 0, Math.PI * 2);
   ctx.stroke();
   
   // crosshair
   ctx.beginPath();
-  ctx.moveTo(centerX - 6, centerY);
-  ctx.lineTo(centerX + 6, centerY);
-  ctx.moveTo(centerX, centerY - 6);
-  ctx.lineTo(centerX, centerY + 6);
+  ctx.moveTo(targetX - 6, targetY);
+  ctx.lineTo(targetX + 6, targetY);
+  ctx.moveTo(targetX, targetY - 6);
+  ctx.lineTo(targetX, targetY + 6);
   ctx.stroke();
   
   // center dot
   ctx.fillStyle = COLORS.TARGET;
   ctx.beginPath();
-  ctx.arc(centerX, centerY, 2, 0, Math.PI * 2);
+  ctx.arc(targetX, targetY, 2, 0, Math.PI * 2);
   ctx.fill();
 
   requestAnimationFrame(animate);
