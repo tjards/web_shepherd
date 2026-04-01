@@ -144,8 +144,10 @@ function initCursorObjects(canvas) {
   cursorShepherd.y = canvas.height / 2;
   cursorShepherd.vx = 0;
   cursorShepherd.vy = 0;
+  cursorShepherd.isCursor = true;
 
   cursorHerdMember = new HerdMember(canvas.width / 2, canvas.height / 2, 0);
+  cursorHerdMember.isCursor = true;
   
   targetX = canvas.width / 2;
   targetY = canvas.height / 2;
@@ -157,6 +159,16 @@ function initCursorModeToggle() {
   if (toggle) {
     toggle.addEventListener('change', (e) => {
       cursorControlsFirstShepherd = e.target.checked;
+    });
+  }
+}
+
+// show radii toggle
+function initShowRadiiToggle() {
+  const toggle = document.getElementById('show-radii-toggle');
+  if (toggle) {
+    toggle.addEventListener('change', (e) => {
+      showRadii = e.target.checked;
     });
   }
 }
@@ -354,18 +366,28 @@ function animate() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // update cursor position based on mode
+  const rawVx = mouseX - prevMouseX;
+  const rawVy = mouseY - prevMouseY;
+  const alpha = PHYSICS.CURSOR_VELOCITY_SMOOTH;
+  
   if (cursorControlsFirstShepherd) {
     shepherds.members[0].x = mouseX;
     shepherds.members[0].y = mouseY;
-    // set velocity based on mouse movement so triangle orientation matches cursor direction
-    shepherds.members[0].vx = mouseX - prevMouseX;
-    shepherds.members[0].vy = mouseY - prevMouseY;
+    // smooth velocity to reduce jitter
+    shepherds.members[0].vx = shepherds.members[0].vx * (1 - alpha) + rawVx * alpha;
+    shepherds.members[0].vy = shepherds.members[0].vy * (1 - alpha) + rawVy * alpha;
+    
+    // also update cursor shepherd object for radius visualization
+    cursorShepherd.x = mouseX;
+    cursorShepherd.y = mouseY;
+    cursorShepherd.vx = shepherds.members[0].vx;
+    cursorShepherd.vy = shepherds.members[0].vy;
   } else {
     cursorHerdMember.x = mouseX;
     cursorHerdMember.y = mouseY;
-    // set velocity based on mouse movement so triangle orientation matches cursor direction
-    cursorHerdMember.vx = mouseX - prevMouseX;
-    cursorHerdMember.vy = mouseY - prevMouseY;
+    // smooth velocity to reduce jitter
+    cursorHerdMember.vx = cursorHerdMember.vx * (1 - alpha) + rawVx * alpha;
+    cursorHerdMember.vy = cursorHerdMember.vy * (1 - alpha) + rawVy * alpha;
   }
 
   // all shepherds navigate to the center target
@@ -408,6 +430,11 @@ function animate() {
 
     shep.update(allMembers, otherSheps, shepsTargetX, shepsTargetY, canvas.width, canvas.height);
     shep.draw(ctx, shepherds.color);
+  }
+
+  // draw cursor shepherd if in shepherd mode
+  if (cursorControlsFirstShepherd) {
+    cursorShepherd.draw(ctx, shepherds.color);
   }
 
   // compute shepherds centroid (cached for this frame)
@@ -478,6 +505,7 @@ function initUI(canvas, ctx) {
     initSliders();
     initPopulationControls();
     initCursorModeToggle();
+    initShowRadiiToggle();
     initMultiSlider();
     updateVisualizations();
   });

@@ -3,14 +3,29 @@
   <!-- CURSOR MODE TOGGLE -->
   <div class="panel-section">
     <div class="title-with-toggle">
-      <div class="section-title">Cursor Mode</div>
+      <div class="section-title">Cursor</div>
       <div class="toggle-switch toggle-switch--compact">
-        <span class="label-inline">Herd</span>
+        <span class="label-inline">herd</span>
         <input id="cursor-mode-toggle" type="checkbox">
         <label for="cursor-mode-toggle" class="toggle-switch-label">
           <span class="toggle-switch-slider"></span>
         </label>
-        <span class="label-inline">Shepherd</span>
+        <span class="label-inline">shepherd</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHOW RADII TOGGLE -->
+  <div class="panel-section">
+    <div class="title-with-toggle">
+      <div class="section-title">Ranges</div>
+      <div class="toggle-switch toggle-switch--compact">
+        <span class="label-inline">off</span>
+        <input id="show-radii-toggle" type="checkbox">
+        <label for="show-radii-toggle" class="toggle-switch-label">
+          <span class="toggle-switch-slider"></span>
+        </label>
+        <span class="label-inline">on</span>
       </div>
     </div>
   </div>
@@ -23,7 +38,7 @@
     </div>
 
     <div id="sizes-content" class="collapsible-content">
-    <div style="margin-bottom: 10px;">
+    <div style="margin-bottom: 6px;">
       <div class="input-row-flex">
         <span class="label-uppercase">Herd Size</span>
         <input id="herd-size-input" type="number" min="3" max="50" value="40" class="number-input">
@@ -95,9 +110,9 @@
     </div>
 
     <!-- Forces Section -->
-    <div style="margin-bottom: 12px;">
-      <div class="slider-group-title" style="margin-bottom: 8px;">forces</div>
-      <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="margin-bottom: 8px;">
+      <div class="slider-group-title" style="margin-bottom: 4px;">forces</div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
         <div class="slider-group">
           <div class="slider-row">
             <span class="slider-label">navigation</span>

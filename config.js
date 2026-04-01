@@ -14,7 +14,8 @@ const PHYSICS = {
   SHEPHERD_MAX_FORCE: 0.12,
   SHEPHERD_LAZINESS_SCALE: 0.01,
   SHEPHERD_UPDATE_THRESHOLD: 0.5,
-  VISUALIZATION_SCALE: 4
+  VISUALIZATION_SCALE: 1,
+  CURSOR_VELOCITY_SMOOTH: 0.2  // lower = smoother but more lag, higher = more responsive
 };
 
 // initialization of agents 
@@ -26,12 +27,15 @@ const INIT = {
 
 // ====== DYNAMIC ========
 
+// visualization toggles
+let showRadii = false;  // show/hide circle radii
+
 // herd behavior parameters (updated dynamically by UI sliders)
 let herdParams = {
-  r_R: 4.0,      // repulsion radius (within the herd)
-  r_O: 5.5,      // orientation radius
-  r_A: 10.0,     // attraction radius 
-  a_R: 6.0,      // repulsion gain
+  r_R: 6.0, //4.0,      // repulsion radius (within the herd)
+  r_O: 10.0, //5.5,      // orientation radius
+  r_A: 14.0, //10.0,     // attraction radius 
+  a_R: 8.0, //6.0,      // repulsion gain
   a_O: 2.0,      // orientation gain
   a_A: 3.0,      // attraction gain 
   a_I: 4.0,      // interaction gain (shepherd avoidance)
@@ -42,7 +46,7 @@ herdParams.r_I = herdParams.r_A - 0.5;  // interaction radius (derived: r_A - 0.
 // shepherd behavior parameters (updated dynamically by UI sliders)
 let shepParams = {
   r_S: (herdParams.r_A - 0.5) - 1,  // desired shepherding radius (derived: (r_A - 0.5) - 1)
-  a_N: 8.0,                         // navigation gain
+  a_N: 10.0,                         // navigation gain
   a_R_s: 2.0,                       // shepherd repulsion gain
   a_R_s_v: 2 * Math.sqrt(2.0),      // shepherd velocity repulsion (derived: 2*sqrt(a_R_s))
   a_V_s: 3.0                        // shepherd laziness gain

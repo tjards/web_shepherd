@@ -113,8 +113,10 @@ class HerdMember extends Agent {
   }
 
   draw(ctx, color) {
-    const maxRadiusViz = Math.max(herdParams.r_R, herdParams.r_O, herdParams.r_A);
-    this.drawRadiusCircle(ctx, color, maxRadiusViz);
+    if (showRadii || this.isCursor) {
+      const maxRadiusViz = Math.max(herdParams.r_R, herdParams.r_O, herdParams.r_A);
+      this.drawRadiusCircle(ctx, color, maxRadiusViz);
+    }
     
     const angle = Math.atan2(this.vy, this.vx);
     this.drawTriangle(ctx, color, 6, angle);
