@@ -79,10 +79,10 @@ function initPopulationControls() {
 
   if (herdSizeInput) {
     herdSizeInput.addEventListener('change', () => {
-      const value = parseInt(herdSizeInput.value);
+      let value = parseInt(herdSizeInput.value);
       if (value < 3) {
+        value = 3;
         herdSizeInput.value = 3;
-        return;
       }
       const diff = value - herdSize;
       if (diff > 0) {
@@ -96,10 +96,10 @@ function initPopulationControls() {
 
   if (shepherdsCountInput) {
     shepherdsCountInput.addEventListener('change', () => {
-      const value = parseInt(shepherdsCountInput.value);
+      let value = parseInt(shepherdsCountInput.value);
       if (value < 1) {
+        value = 1;
         shepherdsCountInput.value = 1;
-        return;
       }
       const diff = value - shepherdSize;
       if (diff > 0) {
