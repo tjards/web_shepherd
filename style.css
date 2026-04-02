@@ -53,13 +53,15 @@ canvas {
 
 .panel-section:last-child {
   border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
 .section-title {
-  font-weight: bold;
+  font-weight: 300;
   margin-bottom: 4px;
   font-size: 12px;
-  text-transform: uppercase;
+  text-transform: lowercase;
   letter-spacing: 0.5px;
   color: var(--color-text);
 }
@@ -162,7 +164,7 @@ input[type="range"]::-moz-range-thumb {
 .slider-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .slider-group-title {
@@ -177,7 +179,7 @@ input[type="range"]::-moz-range-thumb {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .slider-label {
@@ -229,12 +231,12 @@ input[type="range"]::-moz-range-thumb {
   position: absolute;
   font-size: 7px;
   font-weight: 600;
-  text-transform: uppercase;
+  text-transform: lowercase;
   color: rgba(0, 0, 0, 0.6);
   letter-spacing: 0.3px;
   white-space: nowrap;
   transform: translateX(-50%);
-  top: -6px;
+  top: -3px;
   pointer-events: none;
 }
 
@@ -270,7 +272,7 @@ input[type="range"]::-moz-range-thumb {
   font-weight: 600;
   white-space: nowrap;
   transform: translateX(-50%);
-  bottom: -16px;
+  bottom: -6px;
   pointer-events: none;
   min-width: 28px;
   text-align: center;
@@ -379,8 +381,15 @@ input[type="range"]::-moz-range-thumb {
   letter-spacing: 0.5px;
 }
 
+.label-lowercase{
+  font-size: 10px;
+  color: rgba(0, 0, 0, 0.6);
+  text-transform: lowercase;
+  letter-spacing: 0.5px;
+}
+
 .number-input {
-  width: 50px;
+  width: 40px;
   font-size: 10px;
   padding: 4px;
   border: 1px solid rgba(0, 0, 0, 0.2);
