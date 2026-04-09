@@ -3,10 +3,12 @@
 
 // physics 
 const PHYSICS = {
-  HERD_MAX_SPEED: 0.75,
+  MAX_FORCE_SHEP: 0.10,   // max shepherd force per frame 
+  SHEPHERD_MAX_SPEED: 5.0,
   SHEPHERD_REPEL_MAX_DIST: 50,
-  SHEPHERD_MAX_SPEED: 1.5,
   SHEPHERD_UPDATE_THRESHOLD: 0.5,
+  MAX_FORCE_HERD: 0.1,         // max herd force per frame 
+  HERD_MAX_SPEED: 2.0,
   DT: 0.02,
   VISUALIZATION_SCALE: 1,
   CURSOR_VELOCITY_SMOOTH: 0.2  // lower = smoother but more lag, higher = more responsive
@@ -16,7 +18,7 @@ const PHYSICS = {
 const INIT = {
   HERD_SIZE: 40,
   SHEPHERD_SIZE: 40,
-  HERD_SPREAD_RADIUS: 120
+  HERD_SPREAD_RADIUS: 300
 };
 
 // ====== DYNAMIC ========
@@ -24,41 +26,41 @@ const INIT = {
 // visualization toggles
 let showRadii = false;  // show/hide circle radii
 
-// herd behavior parameters (updated dynamically by UI sliders)
+// herd behavior parameters 
 let herdParams = {
-  r_R: 10.0, // 20.0,       // repulsion radius (within the herd)
-  r_O: 20.0, // 30.0,       // orientation radius
-  r_A: 30.0, //50.0,       // attraction radius 
-  a_R: 16.0, //8.0,        // repulsion gain
-  a_O: 8.0, //2.0,        // orientation gain
-  a_A: 4.0, //5.0,        // attraction gain
-  a_I: 10.0, //5.0,        // interaction gain (shepherd avoidance)
-  a_V: 0.3         // drag gain
+  r_R: 20.0, // 20.0,       // repulsion radius (within the herd)
+  r_O: 30.0, // 30.0,       // orientation radius
+  r_A: 50.0, //50.0,       // attraction radius 
+  a_R: 0.9,                 // repulsion gain      [0,1]
+  a_O: 1.0,                 // orientation gain    [0,1]
+  a_A: 0.9,                 // attraction gain     [0,1]
+  a_I: 0.625,               // interaction gain (shepherd avoidance) [0,1]
+  a_V: 2.0                 // drag gain
 };
 herdParams.r_I = herdParams.r_A - 0.5;  // interaction radius (derived: r_A - 0.5)
 
-// shepherd behavior parameters (updated dynamically by UI sliders)
+// shepherd behavior parameters 
 let shepParams = {
   r_S: (herdParams.r_A - 0.5) - 1,  // desired shepherding radius (derived: (r_A - 0.5) - 1)
-  a_N: 10.0, //10.0,                         // navigation gain
-  a_R_s: 10.0, //10.0,                       // shepherd repulsion gain
-  a_R_s_v: 2 * Math.sqrt(10.0),      // shepherd velocity repulsion (derived: 2*sqrt(a_R_s))
-  a_V_s: 0.3                        // shepherd drag gain
+  a_N: 1.0,                          // navigation gain             [0,1]
+  a_R_s: 1.0,                        // shepherd repulsion gain     [0,1]
+  a_R_s_v: 2 * Math.sqrt(1.0),       // shepherd velocity repulsion (derived: 2*sqrt(a_R_s))
+  a_V_s: 0.3                         // shepherd drag gain
 };
 
-// Min/max values for UI sliders (fixed)
+// min/max values for UI sliders (fixed)
 const SLIDER_CONSTRAINTS = {
-  'herd-a-r': { min: 0, max: 20, step: 0.1 },
-  'herd-a-o': { min: 0, max: 20, step: 0.1 },
-  'herd-a-a': { min: 0, max: 20, step: 0.1 },
-  'herd-a-i': { min: 0, max: 20, step: 0.1 },
-  'herd-a-v': { min: 0, max: 5.0, step: 0.1 },
-  'shep-a-n': { min: 0, max: 20, step: 0.1 },
-  'shep-a-r-s': { min: 0, max: 20, step: 0.1 },
-  'shep-a-v-s': { min: 0, max: 5.0, step: 0.1 }
+  'herd-a-r': { min: 0, max: 1, step: 0.01 },
+  'herd-a-o': { min: 0, max: 1, step: 0.01 },
+  'herd-a-a': { min: 0, max: 1, step: 0.01 },
+  'herd-a-i': { min: 0, max: 1, step: 0.01 },
+  'herd-a-v': { min: 0, max: 1, step: 0.01 },
+  'shep-a-n': { min: 0, max: 1, step: 0.01 },
+  'shep-a-r-s': { min: 0, max: 1, step: 0.01 },
+  'shep-a-v-s': { min: 0, max: 1, step: 0.01 }
 };
 
-// Slider configuration metadata (setters added dynamically in ui.js)
+// slider configuration
 const SLIDER_CONFIG_DATA = [
   // Herd Behavior - Forces
   { id: 'herd-a-r', label: 'repulsion', group: null, section: 'herd', value: herdParams.a_R, param: 'herdParams.a_R' },

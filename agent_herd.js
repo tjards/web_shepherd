@@ -33,11 +33,12 @@ class HerdMember extends Agent {
       const dy = this.y - other.y;
       const dist = VectorMath.distance(this.x, this.y, other.x, other.y);
 
-      // repulsion (r_R)
+      // repulsion (r_R) — inverse-square weighted (i.e., closer neighbors dominate)
       if (dist < herdParams.r_R && dist > 0) {
-        repX += (dx / dist) * herdParams.a_R;
-        repY += (dy / dist) * herdParams.a_R;
-        repCount++;
+        const w = 1 / (dist * dist);
+        repX += (dx / dist) * w;
+        repY += (dy / dist) * w;
+        repCount += w;
       }
 
       // orientation (r_O)
@@ -55,39 +56,47 @@ class HerdMember extends Agent {
       }
     }
 
-    // apply aggregated forces
-    if (repCount > 0) {
-      this.vx += repX / repCount * PHYSICS.DT;
-      this.vy += repY / repCount * PHYSICS.DT;
-    }
-
-    if (oriCount > 0) {
-      oriX /= oriCount;
-      oriY /= oriCount;
-      this.vx += (oriX - this.vx) * herdParams.a_O * PHYSICS.DT;
-      this.vy += (oriY - this.vy) * herdParams.a_O * PHYSICS.DT;
-    }
-
-    if (attCount > 0) {
-      attX /= attCount;
-      attY /= attCount;
-      const dx = attX - this.x;
-      const dy = attY - this.y;
-      const dist = VectorMath.distance(this.x, this.y, attX, attY);
-      if (dist > 0) {
-        this.vx += (dx / dist) * herdParams.a_A * PHYSICS.DT;
-        this.vy += (dy / dist) * herdParams.a_A * PHYSICS.DT;
-      }
-    }
-
-    // interaction with shepherds 
+    // check shepherd interaction first (highest priority — overrides herd mentality)
+    let shepRepX = 0, shepRepY = 0, shepCount = 0;
     for (let shep of shepherds) {
       const dx = this.x - shep.x;
       const dy = this.y - shep.y;
       const dist = VectorMath.distance(this.x, this.y, shep.x, shep.y);
       if (dist < herdParams.r_I && dist > 0) {
-        this.vx += (dx / dist) * herdParams.a_I * PHYSICS.DT;
-        this.vy += (dy / dist) * herdParams.a_I * PHYSICS.DT;
+        const w = 1 / (dist * dist);
+        shepRepX += (dx / dist) * w;
+        shepRepY += (dy / dist) * w;
+        shepCount += w;
+      }
+    }
+
+    // apply aggregated forces 
+    // zoning: shepherd overrides all; herd repulsion overrides orientation and attraction
+    if (shepCount > 0) {
+      this.vx += (shepRepX / shepCount) * PHYSICS.MAX_FORCE_HERD * herdParams.a_I;
+      this.vy += (shepRepY / shepCount) * PHYSICS.MAX_FORCE_HERD * herdParams.a_I;
+    } else if (repCount > 0) {
+      this.vx += (repX / repCount) * PHYSICS.MAX_FORCE_HERD * herdParams.a_R;
+      this.vy += (repY / repCount) * PHYSICS.MAX_FORCE_HERD * herdParams.a_R;
+    } else {
+      if (oriCount > 0) {
+        oriX /= oriCount;
+        oriY /= oriCount;
+        const oriForce = VectorMath.limitMagnitude(oriX - this.vx, oriY - this.vy, PHYSICS.MAX_FORCE_HERD * herdParams.a_O);
+        this.vx += oriForce.vx;
+        this.vy += oriForce.vy;
+      }
+
+      if (attCount > 0) {
+        attX /= attCount;
+        attY /= attCount;
+        const dx = attX - this.x;
+        const dy = attY - this.y;
+        const dist = VectorMath.distance(this.x, this.y, attX, attY);
+        if (dist > 0) {
+          this.vx += (dx / dist) * PHYSICS.MAX_FORCE_HERD * herdParams.a_A;
+          this.vy += (dy / dist) * PHYSICS.MAX_FORCE_HERD * herdParams.a_A;
+        }
       }
     }
 
@@ -104,7 +113,7 @@ class HerdMember extends Agent {
     this.x += this.vx;
     this.y += this.vy;
 
-    // Wrap around edges of canvas
+    // wrap around edges of canvas
     if (this.x < 0) this.x = width;
     if (this.x > width) this.x = 0;
     if (this.y < 0) this.y = height;
