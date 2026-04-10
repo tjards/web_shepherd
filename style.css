@@ -15,12 +15,15 @@
   --color-text-subtle: rgba(0, 0, 0, 0.5);
 }
 
+
+
+
 /* === CANVAS STYLING === */
 html, body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background: #ffffff;
+  background: rgba(245, 245, 245, 1); /* #ffffff */
 }
 
 canvas {
