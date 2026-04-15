@@ -22,7 +22,8 @@ class SpatialGrid {
 
   // Hash a cell coordinate to a single key
   _key(cx, cy) {
-    // Cantor pairing — fast, unique for all integer pairs
+    // Cantor pairing — bijective for non-negative integers only.
+    // All inputs must be >= 0; negative pairs collide with positive ones.
     return ((cx + cy) * (cx + cy + 1)) / 2 + cy;
   }
 
@@ -50,9 +51,13 @@ class SpatialGrid {
   query(x, y, radius) {
     const results = [];
     const r = Math.max(radius, this.cellSize);
-    const minCx = Math.floor((x - r) * this.invCellSize);
+    // Clamp to >= 0: agents are always at non-negative positions (wrapping
+    // enforces this), so negative cells are empty. Without clamping, negative
+    // cell coords feed into Cantor pairing and collide with positive keys,
+    // returning duplicate agents that cause forces to be multi-counted.
+    const minCx = Math.max(0, Math.floor((x - r) * this.invCellSize));
     const maxCx = Math.floor((x + r) * this.invCellSize);
-    const minCy = Math.floor((y - r) * this.invCellSize);
+    const minCy = Math.max(0, Math.floor((y - r) * this.invCellSize));
     const maxCy = Math.floor((y + r) * this.invCellSize);
 
     for (let cx = minCx; cx <= maxCx; cx++) {
