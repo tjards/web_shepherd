@@ -20,6 +20,17 @@ const SLIDER_CONFIG = SLIDER_CONFIG_DATA.map(config => ({
   }
 }));
 
+// panel-level tune toggle
+function initPanelToggle() {
+  const header = document.getElementById('panel-tune-header');
+  const panel = document.getElementById('control-panel');
+  if (header && panel) {
+    header.addEventListener('click', () => {
+      panel.classList.toggle('collapsed');
+    });
+  }
+}
+
 // collapsible toggle 
 function initCollapsibles() {
   const headers = document.querySelectorAll('.collapsible-header');
@@ -79,6 +90,7 @@ function initPopulationControls() {
   const shepherdsCountInput = document.getElementById('shepherds-count-input');
 
   if (herdSizeInput) {
+    herdSizeInput.value = INIT.HERD_SIZE;
     herdSizeInput.addEventListener('change', () => {
       let value = parseInt(herdSizeInput.value);
       if (value < 3) {
@@ -96,6 +108,7 @@ function initPopulationControls() {
   }
 
   if (shepherdsCountInput) {
+    shepherdsCountInput.value = INIT.SHEPHERD_SIZE;
     shepherdsCountInput.addEventListener('change', () => {
       let value = parseInt(shepherdsCountInput.value);
       if (value < 1) {
@@ -495,6 +508,7 @@ async function loadControlPanel() {
 function initUI(canvas, ctx) {
   // load and initialize control panel
   loadControlPanel().then(() => {
+    initPanelToggle();
     initCollapsibles();
     initSliders();
     initPopulationControls();

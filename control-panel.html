@@ -1,4 +1,12 @@
-<div id="control-panel">
+<div id="control-panel" class="collapsed">
+
+  <!-- TOP-LEVEL TUNE TOGGLE -->
+  <div id="panel-tune-header">
+    <span class="section-title">tune</span>
+    <span id="panel-tune-toggle" class="collapsible-toggle"></span>
+  </div>
+
+  <div id="panel-body">
 
   <!-- CURSOR MODE TOGGLE -->
   <div class="panel-section">
@@ -43,14 +51,14 @@
     <div style="margin-bottom: 6px;">
       <div class="input-row-flex">
         <span class="label-lowercase">herd</span>
-        <input id="herd-size-input" type="number" min="3" max="50" value="40" class="number-input">
+        <input id="herd-size-input" type="number" min="3" max="50" class="number-input">
       </div>
     </div>
 
     <div>
       <div class="input-row-flex">
         <span class="label-lowercase">shepherds</span>
-        <input id="shepherds-count-input" type="number" min="1" max="30" value="40" class="number-input">
+        <input id="shepherds-count-input" type="number" min="1" max="30" class="number-input">
       </div>
     </div>
     </div>
@@ -176,5 +184,6 @@
     </div>
   </div>
 
+  </div><!-- /#panel-body -->
 
 </div>
