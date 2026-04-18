@@ -12,13 +12,15 @@
   <div class="panel-section">
     <div class="title-with-toggle">
       <div class="section-title"></div>
-      <div class="toggle-switch toggle-switch--compact">
-        <span class="label-inline">herd</span>
-        <input id="cursor-mode-toggle" type="checkbox">
-        <label for="cursor-mode-toggle" class="toggle-switch-label">
-          <span class="toggle-switch-slider"></span>
-        </label>
-        <span class="label-inline">shepherd</span>
+      <div id="cursor-mode-slider" class="three-way-toggle">
+        <div class="three-way-track">
+          <div class="three-way-pill" id="cursor-mode-pill"></div>
+        </div>
+        <div class="three-way-labels">
+          <span data-mode="herd">herd</span>
+          <span data-mode="shepherd">shepherd</span>
+          <span data-mode="target">target</span>
+        </div>
       </div>
     </div>
   </div>

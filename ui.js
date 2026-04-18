@@ -154,7 +154,7 @@ function initMouseTracking(canvas) {
 // cursor objects (used for cursor control mode)
 let cursorShepherd;
 let cursorHerdMember;
-let cursorControlsFirstShepherd = false;
+let cursorMode = 'target'; // 'herd' | 'shepherd' | 'target'
 let targetX = 0;
 let targetY = 0;
 
@@ -175,12 +175,27 @@ function initCursorObjects(canvas) {
 
 // cursor mode toggle
 function initCursorModeToggle() {
-  const toggle = document.getElementById('cursor-mode-toggle');
-  if (toggle) {
-    toggle.addEventListener('change', (e) => {
-      cursorControlsFirstShepherd = e.target.checked;
-    });
-  }
+  const slider = document.getElementById('cursor-mode-slider');
+  if (!slider) return;
+  const modes = ['herd', 'shepherd', 'target'];
+  slider.dataset.pos = '2';
+
+  slider.addEventListener('click', (e) => {
+    const label = e.target.closest('[data-mode]');
+    if (label) {
+      const idx = modes.indexOf(label.dataset.mode);
+      if (idx !== -1) {
+        slider.dataset.pos = String(idx);
+        cursorMode = modes[idx];
+      }
+      return;
+    }
+    // click on track — advance to next position
+    const cur = parseInt(slider.dataset.pos);
+    const next = (cur + 1) % 3;
+    slider.dataset.pos = String(next);
+    cursorMode = modes[next];
+  });
 }
 
 // show radii toggle
@@ -380,7 +395,7 @@ function animate() {
   const rawVy = mouseY - prevMouseY;
   const alpha = PHYSICS.CURSOR_VELOCITY_SMOOTH;
   
-  if (cursorControlsFirstShepherd) {
+  if (cursorMode === 'shepherd') {
     shepherds.members[0].x = mouseX;
     shepherds.members[0].y = mouseY;
     // smooth velocity to reduce jitter
@@ -392,6 +407,9 @@ function animate() {
     cursorShepherd.y = mouseY;
     cursorShepherd.vx = shepherds.members[0].vx;
     cursorShepherd.vy = shepherds.members[0].vy;
+  } else if (cursorMode === 'target') {
+    targetX = mouseX;
+    targetY = mouseY;
   } else {
     cursorHerdMember.x = mouseX;
     cursorHerdMember.y = mouseY;
@@ -405,8 +423,8 @@ function animate() {
   const shepsTargetY = targetY;
 
   // update and draw herd (include cursor herd member if in herd mode)
-  const allMembers = cursorControlsFirstShepherd ? herd.members : [...herd.members, cursorHerdMember];
-  const cursorShepherdList = cursorControlsFirstShepherd ? [] : [cursorShepherd];
+  const allMembers = cursorMode === 'herd' ? [...herd.members, cursorHerdMember] : herd.members;
+  const cursorShepherdList = cursorMode === 'shepherd' ? [] : [cursorShepherd];
   const shepsObjects = shepherds.members;
 
   // compute herd centroid (cached for this frame)
@@ -443,7 +461,7 @@ function animate() {
   }
 
   // draw cursor shepherd if in shepherd mode
-  if (cursorControlsFirstShepherd) {
+  if (cursorMode === 'shepherd') {
     cursorShepherd.draw(ctx, shepherds.color);
   }
 
@@ -464,31 +482,15 @@ function animate() {
   ctx.globalAlpha = 1.0;
 
   // draw target at current position
-  // outer circle
-  ctx.strokeStyle = COLORS.TARGET;
+  // crosshair only
+  ctx.strokeStyle = 'rgba(80, 80, 80, 0.7)';
   ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.arc(targetX, targetY, 8, 0, Math.PI * 2);
-  ctx.stroke();
-  
-  // inner circle
-  ctx.beginPath();
-  ctx.arc(targetX, targetY, 4, 0, Math.PI * 2);
-  ctx.stroke();
-  
-  // crosshair
   ctx.beginPath();
   ctx.moveTo(targetX - 6, targetY);
   ctx.lineTo(targetX + 6, targetY);
   ctx.moveTo(targetX, targetY - 6);
   ctx.lineTo(targetX, targetY + 6);
   ctx.stroke();
-  
-  // center dot
-  ctx.fillStyle = COLORS.TARGET;
-  ctx.beginPath();
-  ctx.arc(targetX, targetY, 2, 0, Math.PI * 2);
-  ctx.fill();
 
   requestAnimationFrame(animate);
 }
