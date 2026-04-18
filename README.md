@@ -4,9 +4,6 @@ An interactive web app demonstrating shepherding behaviour.
 
 Click [here](https://tjards.github.io/web_shepherd/) to access.
 
-
-![Screenshot](docs/screenshot.png)
-
 ## References
 
 Implemented using the technique described in:
