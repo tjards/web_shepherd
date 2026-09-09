@@ -79,6 +79,7 @@ function initPopulationControls() {
   const shepherdsCountInput = document.getElementById('shepherds-count-input');
 
   if (herdSizeInput) {
+    herdSizeInput.value = INIT.HERD_SIZE;
     herdSizeInput.addEventListener('change', () => {
       let value = parseInt(herdSizeInput.value);
       if (value < 3) {
@@ -96,6 +97,7 @@ function initPopulationControls() {
   }
 
   if (shepherdsCountInput) {
+    shepherdsCountInput.value = INIT.SHEPHERD_SIZE;
     shepherdsCountInput.addEventListener('change', () => {
       let value = parseInt(shepherdsCountInput.value);
       if (value < 1) {
