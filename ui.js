@@ -1,13 +1,5 @@
-// load css colors 
-const COLORS = {
-  HERD: getComputedStyle(document.documentElement).getPropertyValue('--color-herd').trim(),
-  HERD_LIGHT: getComputedStyle(document.documentElement).getPropertyValue('--color-herd-light').trim(),
-  SHEPHERD: getComputedStyle(document.documentElement).getPropertyValue('--color-shepherd').trim(),
-  SHEPHERD_LIGHT: getComputedStyle(document.documentElement).getPropertyValue('--color-shepherd-light').trim(),
-  TARGET: getComputedStyle(document.documentElement).getPropertyValue('--color-target').trim(),
-  CENTROID_HERD: getComputedStyle(document.documentElement).getPropertyValue('--color-centroid-herd').trim(),
-  CENTROID_SHEPHERD: getComputedStyle(document.documentElement).getPropertyValue('--color-centroid-shepherd').trim()
-};
+// load colors from mode configuration
+const COLORS = modeConfig.COLORS;
 
 
 // builds slides from config data 
@@ -370,6 +362,49 @@ function drawFPS(ctx) {
   ctx.fillText(text, 10, 20);
 }
 
+// Target rendering functions
+function drawTargetFull(ctx) {
+  // Full target rendering: outer circle + inner circle + crosshair + dot
+  ctx.strokeStyle = COLORS.TARGET;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(targetX, targetY, 8, 0, Math.PI * 2);
+  ctx.stroke();
+  
+  ctx.beginPath();
+  ctx.arc(targetX, targetY, 4, 0, Math.PI * 2);
+  ctx.stroke();
+  
+  ctx.beginPath();
+  ctx.moveTo(targetX - 6, targetY);
+  ctx.lineTo(targetX + 6, targetY);
+  ctx.moveTo(targetX, targetY - 6);
+  ctx.lineTo(targetX, targetY + 6);
+  ctx.stroke();
+  
+  ctx.fillStyle = COLORS.TARGET;
+  ctx.beginPath();
+  ctx.arc(targetX, targetY, 2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawTargetCrosshair(ctx) {
+  // Slim target rendering: just the crosshair
+  ctx.strokeStyle = COLORS.TARGET;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(targetX - 6, targetY);
+  ctx.lineTo(targetX + 6, targetY);
+  ctx.moveTo(targetX, targetY - 6);
+  ctx.lineTo(targetX, targetY + 6);
+  ctx.stroke();
+  
+  ctx.fillStyle = COLORS.TARGET;
+  ctx.beginPath();
+  ctx.arc(targetX, targetY, 2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 // animation 
 let animationContext = null;
 
@@ -412,6 +447,11 @@ function animate() {
   const shepsTargetX = targetX;
   const shepsTargetY = targetY;
 
+  // Apply target smoothing
+  const beta = PHYSICS.TARGET_POSITION_SMOOTH || 0.03;
+  targetX = targetX * (1 - beta) + mouseX * beta;
+  targetY = targetY * (1 - beta) + mouseY * beta;
+
   // update and draw herd (include cursor herd member if in herd mode)
   const allMembers = herd.members;
   const includeCursorHerd = !cursorControlsFirstShepherd;
@@ -449,13 +489,15 @@ function animate() {
     cursorHerdMember.draw(ctx, herd.color);
   }
 
-  // draw herd centroid
-  ctx.fillStyle = COLORS.CENTROID_HERD;
-  ctx.globalAlpha = 0.3;
-  ctx.beginPath();
-  ctx.arc(centX, centY, 8, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1.0;
+  // draw herd centroid (full mode only)
+  if (modeConfig.SHOW_CENTROIDS) {
+    ctx.fillStyle = COLORS.CENTROID_HERD;
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath();
+    ctx.arc(centX, centY, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+  }
 
   // update and draw shepherds (pass full list, each shepherd skips self)
   for (let s = 0; s < shepsObjects.length; s++) {
@@ -478,45 +520,65 @@ function animate() {
   shepCentX /= shepherds.members.length;
   shepCentY /= shepherds.members.length;
 
-  ctx.fillStyle = COLORS.CENTROID_SHEPHERD;
-  ctx.globalAlpha = 0.3;
-  ctx.beginPath();
-  ctx.arc(shepCentX, shepCentY, 8, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1.0;
+  // draw shepherd centroid (full mode only)
+  if (modeConfig.SHOW_CENTROIDS) {
+    ctx.fillStyle = COLORS.CENTROID_SHEPHERD;
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath();
+    ctx.arc(shepCentX, shepCentY, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+  }
 
   // draw target at current position
-  // outer circle
-  ctx.strokeStyle = COLORS.TARGET;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.arc(targetX, targetY, 8, 0, Math.PI * 2);
-  ctx.stroke();
-  
-  // inner circle
-  ctx.beginPath();
-  ctx.arc(targetX, targetY, 4, 0, Math.PI * 2);
-  ctx.stroke();
-  
-  // crosshair
-  ctx.beginPath();
-  ctx.moveTo(targetX - 6, targetY);
-  ctx.lineTo(targetX + 6, targetY);
-  ctx.moveTo(targetX, targetY - 6);
-  ctx.lineTo(targetX, targetY + 6);
-  ctx.stroke();
-  
-  // center dot
-  ctx.fillStyle = COLORS.TARGET;
-  ctx.beginPath();
-  ctx.arc(targetX, targetY, 2, 0, Math.PI * 2);
-  ctx.fill();
+  if (modeConfig.TARGET_STYLE === 'crosshair') {
+    drawTargetCrosshair(ctx);
+  } else {
+    drawTargetFull(ctx);
+  }
 
-  // FPS overlay
-  updateFPS();
-  drawFPS(ctx);
+  // FPS overlay (full mode only)
+  if (modeConfig.SHOW_FPS) {
+    updateFPS();
+    drawFPS(ctx);
+  }
 
   requestAnimationFrame(animate);
+}
+
+// Embedded messaging for iframe communication
+function initEmbeddedMessaging() {
+  window.addEventListener('message', e => {
+    // Validate origin if needed
+    if (!e.data) return;
+
+    switch (e.data.type) {
+      case 'mousemove':
+        prevMouseX = mouseX;
+        prevMouseY = mouseY;
+        mouseX = e.data.x;
+        mouseY = e.data.y;
+        break;
+
+      case 'click':
+        targetX = e.data.x;
+        targetY = e.data.y;
+        break;
+
+      case 'theme':
+        applyTheme(e.data.dark);
+        break;
+    }
+  });
+}
+
+// Theme application
+function applyTheme(isDark) {
+  if (isDark) {
+    document.body.classList.add('dark');
+  } else {
+    document.body.classList.remove('dark');
+  }
 }
 
 // load
@@ -546,6 +608,11 @@ function initUI(canvas, ctx) {
   // initialize interaction systems
   initMouseTracking(canvas);
   initCursorObjects(canvas);
+  
+  // conditionally initialize embedded messaging (slim mode only)
+  if (modeConfig.EMBEDDED_MESSAGING) {
+    initEmbeddedMessaging();
+  }
   
   // set up animation context and start loop
   setAnimationContext(ctx);

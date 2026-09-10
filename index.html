@@ -14,6 +14,14 @@
   <a href="https://github.com/tjards/web_shepherd" target="_blank">repo</a>
 </footer>
 
+<script>
+// Mode detection (slim vs full) - must run before config.js
+const params = new URLSearchParams(window.location.search);
+const APP_MODE = params.get('mode') === 'slim' ? 'slim' : 'full';
+const isSlim = APP_MODE === 'slim';
+// Apply CSS class for mode-specific styling
+document.body.classList.toggle('slim', isSlim);
+</script>
 <script src="config.js"></script>
 <script src="vector-math.js"></script>
 <script src="spatial-grid.js"></script>

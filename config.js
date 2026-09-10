@@ -1,24 +1,83 @@
 
+// ====== MODE CONFIGURATION ========
+const MODE_CONFIG = {
+  full: {
+    SHEPHERD_MAX_FORCE: 0.2,
+    SHEPHERD_MAX_SPEED: 2.0,
+    SHEPHERD_REPEL_MAX_DIST: 50,
+    SHEPHERD_UPDATE_THRESHOLD: 0.5,
+    HERD_MAX_FORCE: 0.1,
+    HERD_MAX_SPEED: 1.0,
+    DT: 0.02,
+    VISUALIZATION_SCALE: 1,
+    CURSOR_VELOCITY_SMOOTH: 0.2,
+    TARGET_POSITION_SMOOTH: 0.03,
+    HERD_SIZE: 20,
+    SHEPHERD_SIZE: 5,
+    HERD_SPREAD_RADIUS: 300,
+    SHOW_CENTROIDS: true,
+    SHOW_FPS: true,
+    TARGET_STYLE: 'full',
+    EMBEDDED_MESSAGING: false,
+    COLORS: {
+      HERD: 'rgba(224, 156, 156, 0.8)',
+      SHEPHERD: 'rgba(70, 70, 70, 0.9)',
+      TARGET: 'rgba(0, 0, 0, 0.8)',
+      CENTROID_HERD: 'rgba(222, 156, 156, 0.7)',
+      CENTROID_SHEPHERD: 'rgba(70, 70, 70, 0.6)'
+    }
+  },
+  slim: {
+    SHEPHERD_MAX_FORCE: 0.2,
+    SHEPHERD_MAX_SPEED: 2.0,
+    SHEPHERD_REPEL_MAX_DIST: 50,
+    SHEPHERD_UPDATE_THRESHOLD: 0.5,
+    HERD_MAX_FORCE: 0.1,
+    HERD_MAX_SPEED: 1.0,
+    DT: 0.02,
+    VISUALIZATION_SCALE: 1,
+    CURSOR_VELOCITY_SMOOTH: 0.2,
+    TARGET_POSITION_SMOOTH: 0.03,
+    HERD_SIZE: 20,
+    SHEPHERD_SIZE: 5,
+    HERD_SPREAD_RADIUS: 300,
+    SHOW_CENTROIDS: false,
+    SHOW_FPS: false,
+    TARGET_STYLE: 'crosshair',
+    EMBEDDED_MESSAGING: true,
+    COLORS: {
+      HERD: 'rgba(224, 156, 156, 0.8)',
+      SHEPHERD: 'rgba(70, 70, 70, 0.9)',
+      TARGET: 'rgba(0, 0, 0, 0.8)',
+      CENTROID_HERD: 'rgba(222, 156, 156, 0.7)',
+      CENTROID_SHEPHERD: 'rgba(70, 70, 70, 0.6)'
+    }
+  }
+};
+
+const modeConfig = MODE_CONFIG[typeof APP_MODE !== 'undefined' ? APP_MODE : 'full'];
+
 // ====== STATIC ========
 
 // physics 
 const PHYSICS = {
-  SHEPHERD_MAX_FORCE: 0.2,   // max shepherd force per frame 
-  SHEPHERD_MAX_SPEED: 2.0,
-  SHEPHERD_REPEL_MAX_DIST: 50,
-  SHEPHERD_UPDATE_THRESHOLD: 0.5,
-  HERD_MAX_FORCE: 0.1,         // max herd force per frame 
-  HERD_MAX_SPEED: 1.0,
-  DT: 0.02,
-  VISUALIZATION_SCALE: 1,
-  CURSOR_VELOCITY_SMOOTH: 0.2  // lower = smoother but more lag, higher = more responsive
+  SHEPHERD_MAX_FORCE: modeConfig.SHEPHERD_MAX_FORCE,
+  SHEPHERD_MAX_SPEED: modeConfig.SHEPHERD_MAX_SPEED,
+  SHEPHERD_REPEL_MAX_DIST: modeConfig.SHEPHERD_REPEL_MAX_DIST,
+  SHEPHERD_UPDATE_THRESHOLD: modeConfig.SHEPHERD_UPDATE_THRESHOLD,
+  HERD_MAX_FORCE: modeConfig.HERD_MAX_FORCE,
+  HERD_MAX_SPEED: modeConfig.HERD_MAX_SPEED,
+  DT: modeConfig.DT,
+  VISUALIZATION_SCALE: modeConfig.VISUALIZATION_SCALE,
+  CURSOR_VELOCITY_SMOOTH: modeConfig.CURSOR_VELOCITY_SMOOTH,
+  TARGET_POSITION_SMOOTH: modeConfig.TARGET_POSITION_SMOOTH
 };
 
 // initialization of agents 
 const INIT = {
-  HERD_SIZE: 20,
-  SHEPHERD_SIZE: 5,
-  HERD_SPREAD_RADIUS: 300
+  HERD_SIZE: modeConfig.HERD_SIZE,
+  SHEPHERD_SIZE: modeConfig.SHEPHERD_SIZE,
+  HERD_SPREAD_RADIUS: modeConfig.HERD_SPREAD_RADIUS
 };
 
 // ====== DYNAMIC ========
