@@ -468,6 +468,63 @@ body.slim .slim-only {
   display: block;
 }
 
+/* Slim mode: strip panel chrome, leaving only the floating cursor-mode toggle */
+body.slim #control-panel {
+  position: fixed;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: none;
+  border: none;
+  padding: 0;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+}
+
+body.slim .cursor-mode-section {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+body.slim .cursor-mode-section .title-with-toggle {
+  justify-content: center;
+  margin: 0;
+}
+
+body.slim .toggle-switch {
+  gap: 6px;
+  opacity: 0.55;
+  transition: opacity 0.2s;
+}
+
+body.slim .toggle-switch:hover {
+  opacity: 1;
+}
+
+body.slim .toggle-switch-slider {
+  width: 40px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--color-herd);
+}
+
+body.slim .toggle-switch-slider:before {
+  width: 12px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+body.slim .toggle-switch input[type="checkbox"]:checked + .toggle-switch-label .toggle-switch-slider {
+  background: var(--color-shepherd);
+}
+
+body.slim .label-inline {
+  font-size: 9px;
+  letter-spacing: 0.3px;
+}
+
 /* Dark mode support */
 body.dark {
   /* Agent colors — herd reddish stays, greys/blacks go light */
