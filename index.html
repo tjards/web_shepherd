@@ -27,6 +27,16 @@ const APP_MODE = params.get('mode') === 'slim' ? 'slim' : 'full';
 const isSlim = APP_MODE === 'slim';
 // Apply CSS class for mode-specific styling
 document.body.classList.toggle('slim', isSlim);
+
+// In slim mode, hide the full mode link (especially when embedded in iframe)
+if (isSlim) {
+  document.addEventListener('DOMContentLoaded', () => {
+    const modeLinkSlim = document.getElementById('mode-link-slim');
+    if (modeLinkSlim) {
+      modeLinkSlim.style.display = 'none';
+    }
+  });
+}
 </script>
 <script src="config.js"></script>
 <script src="vector-math.js"></script>
