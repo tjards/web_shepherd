@@ -2,7 +2,8 @@
 
 // custom agent class 
 class Agent {
-  drawTriangle(ctx, color, size, angle) {
+  drawTriangle(ctx, color, angle) {
+    const size = PHYSICS.TRIANGLE_SIZE;
     ctx.fillStyle = color;
     ctx.save();
     ctx.translate(this.x, this.y);

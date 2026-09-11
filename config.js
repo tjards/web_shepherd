@@ -19,6 +19,7 @@ const MODE_CONFIG = {
     SHOW_FPS: true,
     TARGET_STYLE: 'full',
     EMBEDDED_MESSAGING: false,
+    TRIANGLE_SIZE: 6,
     COLORS: {
       HERD: 'rgba(224, 156, 156, 0.8)',
       SHEPHERD: 'rgba(70, 70, 70, 0.9)',
@@ -45,6 +46,7 @@ const MODE_CONFIG = {
     SHOW_FPS: false,
     TARGET_STYLE: 'crosshair',
     EMBEDDED_MESSAGING: true,
+    TRIANGLE_SIZE: 4,
     COLORS: {
       HERD: 'rgba(224, 156, 156, 0.8)',
       SHEPHERD: 'rgba(70, 70, 70, 0.9)',
@@ -70,7 +72,8 @@ const PHYSICS = {
   DT: modeConfig.DT,
   VISUALIZATION_SCALE: modeConfig.VISUALIZATION_SCALE,
   CURSOR_VELOCITY_SMOOTH: modeConfig.CURSOR_VELOCITY_SMOOTH,
-  TARGET_POSITION_SMOOTH: modeConfig.TARGET_POSITION_SMOOTH
+  TARGET_POSITION_SMOOTH: modeConfig.TARGET_POSITION_SMOOTH,
+  TRIANGLE_SIZE: modeConfig.TRIANGLE_SIZE
 };
 
 // initialization of agents 

@@ -2,6 +2,7 @@
 
 - An interactive web app demonstrating shepherding behaviour. 
 - Click [here](https://tjards.github.io/web_shepherd/) to access.
+- A slimmed down version for webpage integration is provided [here](https://tjards.github.io/web_shepherd/?mode=slim).
 
 ![Screenshot](docs/screenshot.png)
 
