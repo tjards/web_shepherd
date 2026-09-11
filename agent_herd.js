@@ -139,7 +139,7 @@ class HerdMember extends Agent {
   }
 
   draw(ctx, color) {
-    if (showRadii || this.isCursor) {
+    if ((showRadii || this.isCursor) && !isSlim) {
       const maxRadiusViz = Math.max(herdParams.r_R, herdParams.r_O, herdParams.r_A);
       this.drawRadiusCircle(ctx, color, maxRadiusViz);
     }

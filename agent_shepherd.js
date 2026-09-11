@@ -101,7 +101,7 @@ class Shepherd extends Agent {
   }
 
   draw(ctx, color) {
-    if (showRadii || this.isCursor) {
+    if ((showRadii || this.isCursor) && !isSlim) {
       this.drawRadiusCircle(ctx, color, shepParams.r_S);
     }
     const angle = Math.atan2(this.vy, this.vx);
