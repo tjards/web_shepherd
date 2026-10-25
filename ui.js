@@ -64,6 +64,43 @@ function bindSlider(config) {
 function initSliders() {
   SLIDER_CONFIG.forEach(config => bindSlider(config));
 }
+let worldState = null;
+
+function createWorldState(canvas) {
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+
+  const cursorShepherd = Object.create(Shepherd.prototype);
+  cursorShepherd.x = centerX;
+  cursorShepherd.y = centerY;
+  cursorShepherd.vx = 0;
+  cursorShepherd.vy = 0;
+  cursorShepherd.isCursor = true;
+
+  const cursorHerdMember = new HerdMember(centerX, centerY, 0);
+  cursorHerdMember.isCursor = true;
+
+  return {
+    canvasWidth: canvas.width,
+    canvasHeight: canvas.height,
+    herdMembers: herd.members,
+    shepherdMembers: shepherds.members,
+    herdColor: herd.color,
+    shepherdColor: shepherds.color,
+    mouseX: centerX,
+    mouseY: centerY,
+    prevMouseX: centerX,
+    prevMouseY: centerY,
+    cursorHerdMember,
+    cursorShepherd,
+    // slim mode defaults to the cursor driving the first shepherd
+    cursorControlsFirstShepherd: typeof isSlim !== 'undefined' && isSlim,
+    targetX: centerX,
+    targetY: centerY,
+    lastSimulationFrame: null,
+    needsWorkerResync: true
+  };
+}
 
 // control population sizes 
 function initPopulationControls() {
@@ -71,7 +108,13 @@ function initPopulationControls() {
   const shepherdsCountInput = document.getElementById('shepherds-count-input');
 
   if (herdSizeInput) {
-    herdSizeInput.value = INIT.HERD_SIZE;
+    herdSizeInput.value = herdSize;
+  }
+  if (shepherdsCountInput) {
+    shepherdsCountInput.value = shepherdSize;
+  }
+
+  if (herdSizeInput) {
     herdSizeInput.addEventListener('change', () => {
       let value = parseInt(herdSizeInput.value);
       if (value < 3) {
@@ -85,11 +128,11 @@ function initPopulationControls() {
         for (let i = 0; i < -diff; i++) removeRandomHerdMember();
       }
       herdSize = value;
+      if (worldState) worldState.needsWorkerResync = true;
     });
   }
 
   if (shepherdsCountInput) {
-    shepherdsCountInput.value = INIT.SHEPHERD_SIZE;
     shepherdsCountInput.addEventListener('change', () => {
       let value = parseInt(shepherdsCountInput.value);
       if (value < 1) {
@@ -103,64 +146,44 @@ function initPopulationControls() {
         for (let i = 0; i < -diff; i++) removeRandomShepherd();
       }
       shepherdSize = value;
+      if (worldState) worldState.needsWorkerResync = true;
     });
   }
 }
 
-// mouse play 
-let mouseX = 0;
-let mouseY = 0;
-let prevMouseX = 0;
-let prevMouseY = 0;
 
 function initMouseTracking(canvas) {
-  prevMouseX = canvas.width / 2;
-  prevMouseY = canvas.height / 2;
+  worldState.prevMouseX = canvas.width / 2;
+  worldState.prevMouseY = canvas.height / 2;
+  worldState.mouseX = canvas.width / 2;
+  worldState.mouseY = canvas.height / 2;
   
   canvas.addEventListener('mousemove', e => {
     const rect = canvas.getBoundingClientRect();
-    prevMouseX = mouseX;
-    prevMouseY = mouseY;
-    mouseX = e.clientX - rect.left;
-    mouseY = e.clientY - rect.top;
+    worldState.prevMouseX = worldState.mouseX;
+    worldState.prevMouseY = worldState.mouseY;
+    worldState.mouseX = e.clientX - rect.left;
+    worldState.mouseY = e.clientY - rect.top;
   });
   
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
-    targetX = e.clientX - rect.left;
-    targetY = e.clientY - rect.top;
+    worldState.targetX = e.clientX - rect.left;
+    worldState.targetY = e.clientY - rect.top;
   });
 }
 
-// cursor objects (used for cursor control mode)
-let cursorShepherd;
-let cursorHerdMember;
-let cursorControlsFirstShepherd = typeof isSlim !== 'undefined' && isSlim ? true : false;
-let targetX = 0;
-let targetY = 0;
-
 function initCursorObjects(canvas) {
-  cursorShepherd = Object.create(Shepherd.prototype);
-  cursorShepherd.x = canvas.width / 2;
-  cursorShepherd.y = canvas.height / 2;
-  cursorShepherd.vx = 0;
-  cursorShepherd.vy = 0;
-  cursorShepherd.isCursor = true;
-
-  cursorHerdMember = new HerdMember(canvas.width / 2, canvas.height / 2, 0);
-  cursorHerdMember.isCursor = true;
-  
-  targetX = canvas.width / 2;
-  targetY = canvas.height / 2;
+  worldState = createWorldState(canvas);
 }
 
 // cursor mode toggle
 function initCursorModeToggle() {
   const toggle = document.getElementById('cursor-mode-toggle');
   if (toggle) {
-    toggle.checked = cursorControlsFirstShepherd;
+    toggle.checked = worldState.cursorControlsFirstShepherd;
     toggle.addEventListener('change', (e) => {
-      cursorControlsFirstShepherd = e.target.checked;
+      worldState.cursorControlsFirstShepherd = e.target.checked;
     });
   }
 }
@@ -333,8 +356,6 @@ function initMultiSlider() {
 // precomputeOtherShepherds removed — shepherds now filter with === this
 // check inline, avoiding per-frame array allocation.
 
-// spatial grid — rebuilt each frame, shared across all agents
-const spatialGrid = new SpatialGrid(Math.max(50, herdParams.r_A));
 
 // FPS counter
 let fpsFrameCount = 0;
@@ -362,79 +383,81 @@ function drawFPS(ctx) {
   ctx.fillStyle = '#fff';
   ctx.fillText(text, 10, 20);
 }
+const fixedStepLoop = {
+  stepMs: PHYSICS.FIXED_TIMESTEP_MS,
+  maxCatchupSteps: PHYSICS.MAX_CATCHUP_STEPS,
+  maxFrameDeltaMs: PHYSICS.MAX_FRAME_DELTA_MS,
+  accumulatorMs: 0,
+  lastFrameTime: null,
+  lastSimulationFrame: null
+};
 
 // Target rendering functions
-function drawTargetFull(ctx) {
+function drawTargetFull(ctx, x, y) {
   // Full target rendering: outer circle + inner circle + crosshair + dot
   ctx.strokeStyle = COLORS.TARGET;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.arc(targetX, targetY, 8, 0, Math.PI * 2);
+  ctx.arc(x, y, 8, 0, Math.PI * 2);
   ctx.stroke();
-  
+
   ctx.beginPath();
-  ctx.arc(targetX, targetY, 4, 0, Math.PI * 2);
+  ctx.arc(x, y, 4, 0, Math.PI * 2);
   ctx.stroke();
-  
+
   ctx.beginPath();
-  ctx.moveTo(targetX - 6, targetY);
-  ctx.lineTo(targetX + 6, targetY);
-  ctx.moveTo(targetX, targetY - 6);
-  ctx.lineTo(targetX, targetY + 6);
+  ctx.moveTo(x - 6, y);
+  ctx.lineTo(x + 6, y);
+  ctx.moveTo(x, y - 6);
+  ctx.lineTo(x, y + 6);
   ctx.stroke();
-  
+
   ctx.fillStyle = COLORS.TARGET;
   ctx.beginPath();
-  ctx.arc(targetX, targetY, 2, 0, Math.PI * 2);
+  ctx.arc(x, y, 2, 0, Math.PI * 2);
   ctx.fill();
 }
 
-function drawTargetCrosshair(ctx) {
+function drawTargetCrosshair(ctx, x, y) {
   // Slim target rendering: just the crosshair
   ctx.strokeStyle = COLORS.TARGET;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(targetX - 6, targetY);
-  ctx.lineTo(targetX + 6, targetY);
-  ctx.moveTo(targetX, targetY - 6);
-  ctx.lineTo(targetX, targetY + 6);
+  ctx.moveTo(x - 6, y);
+  ctx.lineTo(x + 6, y);
+  ctx.moveTo(x, y - 6);
+  ctx.lineTo(x, y + 6);
   ctx.stroke();
-  
+
   ctx.fillStyle = COLORS.TARGET;
   ctx.beginPath();
-  ctx.arc(targetX, targetY, 2, 0, Math.PI * 2);
+  ctx.arc(x, y, 2, 0, Math.PI * 2);
   ctx.fill();
 }
 
 // Draw connections between nearby herd members (slim mode only)
-function drawHerdConnections(ctx, members, maxDistance, color, spatialGrid) {
+// Pairwise scan: the simulation grid lives in the worker now, and slim-mode
+// herds are small enough that O(n²) over pairs is cheaper than rebuilding
+// a main-thread grid just for this overlay.
+function drawHerdConnections(ctx, members, maxDistance, color) {
   if (!isSlim) return;
-  
-  const maxDistSq = 1*(maxDistance * maxDistance);
+
+  const maxDistSq = maxDistance * maxDistance;
   const lineColor = color.replace(/[\d.]+\)$/, '0.3)'); // reduce alpha for subtle lines
-  
+
   ctx.strokeStyle = lineColor;
   ctx.lineWidth = 1;
-  
+
   for (let i = 0; i < members.length; i++) {
     const member = members[i];
-    
-    // query nearby members using spatial grid
-    const nearby = spatialGrid.query(member.x, member.y, maxDistance);
-    
-    for (let other of nearby) {
-      if (other === member) continue;
-      
-      // find index of other in members array
-      const otherIndex = members.indexOf(other);
-      
-      // only draw if this member comes before other (to avoid duplicates)
-      if (i >= otherIndex) continue;
-      
+
+    for (let j = i + 1; j < members.length; j++) {
+      const other = members[j];
+
       const dx = member.x - other.x;
       const dy = member.y - other.y;
       const distSq = dx * dx + dy * dy;
-      
+
       if (distSq < maxDistSq) {
         ctx.beginPath();
         ctx.moveTo(member.x, member.y);
@@ -445,165 +468,312 @@ function drawHerdConnections(ctx, members, maxDistance, color, spatialGrid) {
   }
 }
 
-// animation 
+// animation
 let animationContext = null;
+let simulationWorker = null;
+let workerUnavailable = false;
+let workerStepInFlight = false;
+let pendingWorkerSteps = 0;
+
+function cloneBehaviorParams() {
+  return {
+    herdParams: { ...herdParams },
+    shepParams: { ...shepParams }
+  };
+}
+
+const PACKED_AGENT_STRIDE = 4; // x, y, vx, vy
+
+function packAgentsSoA(agents) {
+  const packed = new Float32Array(agents.length * PACKED_AGENT_STRIDE);
+  for (let i = 0; i < agents.length; i++) {
+    const base = i * PACKED_AGENT_STRIDE;
+    packed[base] = agents[i].x;
+    packed[base + 1] = agents[i].y;
+    packed[base + 2] = agents[i].vx;
+    packed[base + 3] = agents[i].vy;
+  }
+  return packed;
+}
+
+function packSingleAgentSoA(agent) {
+  return new Float32Array([agent.x, agent.y, agent.vx, agent.vy]);
+}
+
+function serializeWorldForWorker() {
+  return {
+    canvasWidth: worldState.canvasWidth,
+    canvasHeight: worldState.canvasHeight,
+    herdCount: worldState.herdMembers.length,
+    herdState: packAgentsSoA(worldState.herdMembers),
+    shepherdCount: worldState.shepherdMembers.length,
+    shepherdState: packAgentsSoA(worldState.shepherdMembers),
+    cursorHerdState: packSingleAgentSoA(worldState.cursorHerdMember),
+    cursorShepherdState: packSingleAgentSoA(worldState.cursorShepherd),
+    cursorControlsFirstShepherd: worldState.cursorControlsFirstShepherd,
+    mouseX: worldState.mouseX,
+    mouseY: worldState.mouseY,
+    prevMouseX: worldState.prevMouseX,
+    prevMouseY: worldState.prevMouseY,
+    targetX: worldState.targetX,
+    targetY: worldState.targetY
+  };
+}
+
+function getSnapshotTransferList(snapshot) {
+  return [
+    snapshot.herdState.buffer,
+    snapshot.shepherdState.buffer,
+    snapshot.cursorHerdState.buffer,
+    snapshot.cursorShepherdState.buffer
+  ];
+}
+
+function applyPackedAgentSnapshot(targetAgents, packedState, count, createAgent) {
+  while (targetAgents.length < count) {
+    const base = targetAgents.length * PACKED_AGENT_STRIDE;
+    targetAgents.push(
+      createAgent(
+        targetAgents.length,
+        packedState[base],
+        packedState[base + 1],
+        packedState[base + 2],
+        packedState[base + 3]
+      )
+    );
+  }
+  while (targetAgents.length > count) {
+    targetAgents.pop();
+  }
+
+  for (let i = 0; i < count; i++) {
+    const base = i * PACKED_AGENT_STRIDE;
+    targetAgents[i].x = packedState[base];
+    targetAgents[i].y = packedState[base + 1];
+    targetAgents[i].vx = packedState[base + 2];
+    targetAgents[i].vy = packedState[base + 3];
+  }
+}
+
+function applyWorkerFrame(message) {
+  applyPackedAgentSnapshot(
+    worldState.herdMembers,
+    message.herdState,
+    message.herdCount,
+    (_, x, y, vx, vy) => {
+      const member = new HerdMember(x, y, 0);
+      member.vx = vx;
+      member.vy = vy;
+      return member;
+    }
+  );
+
+  applyPackedAgentSnapshot(
+    worldState.shepherdMembers,
+    message.shepherdState,
+    message.shepherdCount,
+    (index, x, y, vx, vy) => {
+      const shepherd = new Shepherd(x, y, index);
+      shepherd.vx = vx;
+      shepherd.vy = vy;
+      return shepherd;
+    }
+  );
+
+  worldState.cursorHerdMember.x = message.cursorHerdState[0];
+  worldState.cursorHerdMember.y = message.cursorHerdState[1];
+  worldState.cursorHerdMember.vx = message.cursorHerdState[2];
+  worldState.cursorHerdMember.vy = message.cursorHerdState[3];
+
+  worldState.cursorShepherd.x = message.cursorShepherdState[0];
+  worldState.cursorShepherd.y = message.cursorShepherdState[1];
+  worldState.cursorShepherd.vx = message.cursorShepherdState[2];
+  worldState.cursorShepherd.vy = message.cursorShepherdState[3];
+
+  herdSize = worldState.herdMembers.length;
+  shepherdSize = worldState.shepherdMembers.length;
+
+  fixedStepLoop.lastSimulationFrame = message.frameData;
+  worldState.lastSimulationFrame = message.frameData;
+}
+
+function computeFallbackFrame(simState) {
+  const includeCursorHerd = !simState.cursorControlsFirstShepherd;
+  const herdCentroid = computeToroidalCentroid(
+    simState.herdMembers,
+    simState.canvasWidth,
+    simState.canvasHeight,
+    includeCursorHerd ? simState.cursorHerdMember : null
+  );
+  const shepherdCentroid = computeToroidalCentroid(
+    simState.shepherdMembers,
+    simState.canvasWidth,
+    simState.canvasHeight
+  );
+
+  return {
+    includeCursorHerd,
+    herdCentroidX: herdCentroid.x,
+    herdCentroidY: herdCentroid.y,
+    shepherdCentroidX: shepherdCentroid.x,
+    shepherdCentroidY: shepherdCentroid.y
+  };
+}
+
+function dispatchWorkerSteps() {
+  if (!simulationWorker || workerStepInFlight || pendingWorkerSteps <= 0) {
+    return;
+  }
+
+  if (worldState.needsWorkerResync) {
+    const resyncSnapshot = serializeWorldForWorker();
+    simulationWorker.postMessage({
+      type: 'resync',
+      snapshot: resyncSnapshot,
+      params: cloneBehaviorParams()
+    }, getSnapshotTransferList(resyncSnapshot));
+    worldState.needsWorkerResync = false;
+  }
+
+  const steps = pendingWorkerSteps;
+  pendingWorkerSteps = 0;
+  workerStepInFlight = true;
+
+  simulationWorker.postMessage({
+    type: 'step',
+    steps,
+    input: {
+      canvasWidth: worldState.canvasWidth,
+      canvasHeight: worldState.canvasHeight,
+      mouseX: worldState.mouseX,
+      mouseY: worldState.mouseY,
+      prevMouseX: worldState.prevMouseX,
+      prevMouseY: worldState.prevMouseY,
+      targetX: worldState.targetX,
+      targetY: worldState.targetY,
+      cursorControlsFirstShepherd: worldState.cursorControlsFirstShepherd
+    },
+    params: cloneBehaviorParams()
+  });
+}
+
+// Fall back to running the simulation on the main thread when the worker
+// cannot start (e.g. file:// pages) or its script fails to load. All of
+// simulation-core.js is loaded on the main thread too, so stepSimulation()
+// works directly on worldState.
+function disableSimulationWorker(reason) {
+  if (simulationWorker) {
+    simulationWorker.terminate();
+    simulationWorker = null;
+  }
+  workerUnavailable = true;
+  workerStepInFlight = false;
+  pendingWorkerSteps = 0;
+  console.warn('Simulation worker unavailable; falling back to main-thread simulation.', reason);
+}
+
+function ensureSimulationWorker() {
+  if (simulationWorker || workerUnavailable) {
+    return;
+  }
+
+  try {
+    // Pass the app mode so the worker's config.js resolves the same
+    // MODE_CONFIG the main thread uses.
+    simulationWorker = new Worker('simulation-worker.js?mode=' + APP_MODE);
+  } catch (error) {
+    disableSimulationWorker(error);
+    return;
+  }
+
+  // Fires when the worker script itself fails to load or parse.
+  simulationWorker.addEventListener('error', (event) => {
+    disableSimulationWorker(event.message || event);
+  });
+
+  simulationWorker.addEventListener('message', (event) => {
+    const message = event.data;
+    if (message.type === 'frame') {
+      applyWorkerFrame(message);
+      workerStepInFlight = false;
+      dispatchWorkerSteps();
+      return;
+    }
+    if (message.type === 'error') {
+      workerStepInFlight = false;
+      console.error('Simulation worker error:', message.error);
+    }
+  });
+
+  const initSnapshot = serializeWorldForWorker();
+  simulationWorker.postMessage({
+    type: 'init',
+    snapshot: initSnapshot,
+    params: cloneBehaviorParams()
+  }, getSnapshotTransferList(initSnapshot));
+  worldState.needsWorkerResync = false;
+}
 
 function setAnimationContext(ctx) {
   animationContext = ctx;
+  fixedStepLoop.accumulatorMs = 0;
+  fixedStepLoop.lastFrameTime = null;
+  fixedStepLoop.lastSimulationFrame = null;
+  pendingWorkerSteps = 0;
+  workerStepInFlight = false;
 }
 
-function animate() {
-  const canvas = animationContext.canvas;
+function buildSimulationState(canvas) {
+  worldState.canvasWidth = canvas.width;
+  worldState.canvasHeight = canvas.height;
+  worldState.herdMembers = herd.members;
+  worldState.shepherdMembers = shepherds.members;
+  worldState.herdColor = herd.color;
+  worldState.shepherdColor = shepherds.color;
+  return worldState;
+}
+
+function animate(timestamp) {
   const ctx = animationContext;
-  
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const canvas = ctx.canvas;
+  const simState = buildSimulationState(canvas);
+  ensureSimulationWorker();
 
-  // update cursor position based on mode
-  const rawVx = mouseX - prevMouseX;
-  const rawVy = mouseY - prevMouseY;
-  const alpha = PHYSICS.CURSOR_VELOCITY_SMOOTH;
-  
-  if (cursorControlsFirstShepherd) {
-    
-    //shepherds.members[0].x = mouseX;
-    //shepherds.members[0].y = mouseY;
-    // smooth position toward mouse target
-    const beta = PHYSICS.TARGET_POSITION_SMOOTH || 0.03;
-    shepherds.members[0].x = shepherds.members[0].x * (1 - beta) + mouseX * beta;
-    shepherds.members[0].y = shepherds.members[0].y * (1 - beta) + mouseY * beta;
-
-    // smooth velocity to reduce jitter
-    shepherds.members[0].vx = shepherds.members[0].vx * (1 - alpha) + rawVx * alpha;
-    shepherds.members[0].vy = shepherds.members[0].vy * (1 - alpha) + rawVy * alpha;
-    
-    // also update cursor shepherd object for radius visualization
-    //cursorShepherd.x = mouseX;
-    //cursorShepherd.y = mouseY;
-    const betaCursor = PHYSICS.TARGET_POSITION_SMOOTH || 0.03;
-    cursorShepherd.x = cursorShepherd.x * (1 - betaCursor) + mouseX * betaCursor;
-    cursorShepherd.y = cursorShepherd.y * (1 - betaCursor) + mouseY * betaCursor;
-
-
-    cursorShepherd.vx = shepherds.members[0].vx;
-    cursorShepherd.vy = shepherds.members[0].vy;
-  } else {
-
-    // smooth velocity to reduce jitter
-    cursorHerdMember.vx = cursorHerdMember.vx * (1 - alpha) + rawVx * alpha;
-    cursorHerdMember.vy = cursorHerdMember.vy * (1 - alpha) + rawVy * alpha;
-    
-    // smooth position toward mouse target to allow forces (like shepherd repulsion) to act
-    const beta = PHYSICS.TARGET_POSITION_SMOOTH || 0.03;
-    cursorHerdMember.x = cursorHerdMember.x * (1 - beta) + mouseX * beta;
-    cursorHerdMember.y = cursorHerdMember.y * (1 - beta) + mouseY * beta;
+  if (fixedStepLoop.lastFrameTime === null) {
+    fixedStepLoop.lastFrameTime = timestamp;
   }
 
-  // all shepherds navigate to the center target
-  const shepsTargetX = targetX;
-  const shepsTargetY = targetY;
-
-  // Apply target smoothing (skip in slim mode to lock target at center)
-  //if (typeof isSlim === 'undefined' || !isSlim) {
-
-  // Apply target smoothing only in slim mode 
-  //if (typeof isSlim !== 'undefined' && isSlim) {
-
-  if (false) {
-    const beta = PHYSICS.TARGET_POSITION_SMOOTH || 0.03;
-    targetX = targetX * (1 - beta) + mouseX * beta;
-    targetY = targetY * (1 - beta) + mouseY * beta;
+  const frameDelta = Math.min(
+    fixedStepLoop.maxFrameDeltaMs,
+    timestamp - fixedStepLoop.lastFrameTime
+  );
+  fixedStepLoop.lastFrameTime = timestamp;
+  fixedStepLoop.accumulatorMs += frameDelta;
+  let stepsToRun = 0;
+  while (
+    fixedStepLoop.accumulatorMs >= fixedStepLoop.stepMs &&
+    stepsToRun < fixedStepLoop.maxCatchupSteps
+  ) {
+    fixedStepLoop.accumulatorMs -= fixedStepLoop.stepMs;
+    stepsToRun++;
   }
 
-  // update and draw herd (include cursor herd member if in herd mode)
-  const includeCursorHerd = !cursorControlsFirstShepherd;
-  const allMembers = includeCursorHerd ? [...herd.members, cursorHerdMember] : herd.members;
-  const shepsObjects = shepherds.members;
-
-  // rebuild spatial grid with all agents — O(n) per frame
-  spatialGrid.cellSize = Math.max(50, herdParams.r_A, PHYSICS.SHEPHERD_REPEL_MAX_DIST);
-  spatialGrid.invCellSize = 1 / spatialGrid.cellSize;
-  spatialGrid.clear();
-  for (let member of allMembers) spatialGrid.insert(member);
-  for (let shep of shepsObjects) spatialGrid.insert(shep);
-
-  // compute herd centroid (cached for this frame)
-  let centX = 0, centY = 0;
-  for (let member of allMembers) {
-    centX += member.x;
-    centY += member.y;
-  }
-  const centCount = allMembers.length;
-  centX /= centCount;
-  centY /= centCount;
-
-  // draw herd connections (slim mode only) - before drawing members so lines appear behind
-  drawHerdConnections(ctx, allMembers, herdParams.r_A, herd.color, spatialGrid);
-
-  // update each herd member (pass spatial grid for O(1) neighbor lookup)
-  for (let member of allMembers) {
-    member.update(allMembers, shepsObjects, canvas.width, canvas.height, spatialGrid);
-    member.draw(ctx, herd.color);
-  }
-
-  // draw herd centroid (full mode only)
-  if (modeConfig.SHOW_CENTROIDS) {
-    ctx.fillStyle = COLORS.CENTROID_HERD;
-    ctx.globalAlpha = 0.3;
-    ctx.beginPath();
-    ctx.arc(centX, centY, 8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1.0;
-  }
-
-  // update and draw shepherds (pass full list, each shepherd skips self)
-  //for (let s = 0; s < shepsObjects.length; s++) {
-  //  const shep = shepsObjects[s];
-  //  shep.update(allMembers, shepsObjects, shepsTargetX, shepsTargetY, canvas.width, canvas.height, spatialGrid);
-  //  shep.draw(ctx, shepherds.color);
-  //}
-
-  // update and draw shepherds (pass full list, each shepherd skips self)
-  for (let s = 0; s < shepsObjects.length; s++) {
-    const shep = shepsObjects[s];
-    // skip drawing first shepherd if controlling it with cursor
-    if (cursorControlsFirstShepherd && s === 0) {
-      shep.update(allMembers, shepsObjects, shepsTargetX, shepsTargetY, canvas.width, canvas.height, spatialGrid);
+  if (stepsToRun > 0) {
+    if (workerUnavailable) {
+      for (let i = 0; i < stepsToRun; i++) {
+        fixedStepLoop.lastSimulationFrame = stepSimulation(simState);
+      }
     } else {
-      shep.update(allMembers, shepsObjects, shepsTargetX, shepsTargetY, canvas.width, canvas.height, spatialGrid);
-      shep.draw(ctx, shepherds.color);
+      pendingWorkerSteps = Math.min(
+        pendingWorkerSteps + stepsToRun,
+        fixedStepLoop.maxCatchupSteps * 2
+      );
+      dispatchWorkerSteps();
     }
   }
 
-  // draw cursor shepherd if in shepherd mode
-  if (cursorControlsFirstShepherd) {
-    cursorShepherd.draw(ctx, shepherds.color);
-  }
-
-  // compute shepherds centroid (cached for this frame)
-  let shepCentX = 0, shepCentY = 0;
-  for (let s of shepherds.members) {
-    shepCentX += s.x;
-    shepCentY += s.y;
-  }
-  shepCentX /= shepherds.members.length;
-  shepCentY /= shepherds.members.length;
-
-  // draw shepherd centroid (full mode only)
-  if (modeConfig.SHOW_CENTROIDS) {
-    ctx.fillStyle = COLORS.CENTROID_SHEPHERD;
-    ctx.globalAlpha = 0.3;
-    ctx.beginPath();
-    ctx.arc(shepCentX, shepCentY, 8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1.0;
-  }
-
-  // draw target at current position
-  if (modeConfig.TARGET_STYLE === 'crosshair') {
-    drawTargetCrosshair(ctx);
-  } else {
-    drawTargetFull(ctx);
-  }
+  const frameData = fixedStepLoop.lastSimulationFrame || computeFallbackFrame(simState);
+  renderSimulationFrame(ctx, simState, frameData);
 
   // FPS overlay (full mode only)
   if (modeConfig.SHOW_FPS) {
@@ -622,15 +792,15 @@ function initEmbeddedMessaging() {
 
     switch (e.data.type) {
       case 'mousemove':
-        prevMouseX = mouseX;
-        prevMouseY = mouseY;
-        mouseX = e.data.x;
-        mouseY = e.data.y;
+        worldState.prevMouseX = worldState.mouseX;
+        worldState.prevMouseY = worldState.mouseY;
+        worldState.mouseX = e.data.x;
+        worldState.mouseY = e.data.y;
         break;
 
       case 'click':
-        targetX = e.data.x;
-        targetY = e.data.y;
+        worldState.targetX = e.data.x;
+        worldState.targetY = e.data.y;
         break;
 
       case 'theme':
@@ -674,8 +844,8 @@ function initUI(canvas, ctx) {
   });
   
   // initialize interaction systems
-  initMouseTracking(canvas);
   initCursorObjects(canvas);
+  initMouseTracking(canvas);
   
   // conditionally initialize embedded messaging (slim mode only)
   if (modeConfig.EMBEDDED_MESSAGING) {
@@ -685,5 +855,5 @@ function initUI(canvas, ctx) {
   // set up animation context and start loop
   setAnimationContext(ctx);
   enforceConstraints();
-  animate();
+  requestAnimationFrame(animate);
 }
